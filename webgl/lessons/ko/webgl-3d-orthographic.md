@@ -60,24 +60,23 @@ void main() {
 ```
   ...
 
-  // Tell the attribute how to get data out of positionBuffer (ARRAY_BUFFER)
-*  var size = 3;          // 3 components per iteration
-  var type = gl.FLOAT;   // the data is 32bit floats
-  var normalize = false; // don't normalize the data
-  var stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
-  var offset = 0;        // start at the beginning of the buffer
+  // positionBuffer (ARRAY_BUFFER)에서 데이터를 가져 오는 방법을 attribute에 알립니다.
+*  var size = 3;          // 반복마다 3개 구성요소
+  var type = gl.FLOAT;   // 데이터는 32비트 부동소수점
+  var normalize = false; // 정규화를 하지 않음
+  var stride = 0;        // 0 = 반복마다 size & sizeof(type) 만큼 다음으로 이동
+  var offset = 0;        // 버퍼의 시작 지점
   gl.vertexAttribPointer(
       positionAttributeLocation, size, type, normalize, stride, offset);
 
   ...
 
-  // Fill the current ARRAY_BUFFER buffer
-  // with the values that define a letter 'F'.
+  // 현재 ARRAY_BUFFER 버퍼를 'F' 글자를 정의하는 값들로 채웁니다.
   function setGeometry(gl) {
     gl.bufferData(
         gl.ARRAY_BUFFER,
         new Float32Array([
-            // left column
+            // 왼쪽 열
               0,   0,  0,
              30,   0,  0,
               0, 150,  0,
@@ -104,9 +103,9 @@ void main() {
   }
 ```
 
-Next we need to change all the matrix functions from 2D to 3D
+다음은 모든 행렬 함수를 2D에서 3D로 변경하는 것이 필요합니다.
 
-Here are the 2D (before) versions of m3.translation, m3.rotation, and m3.scaling
+여기에 2D(이전) 버전 m3.translation, m3.rotation 그리고 m3.scaling 함수가 있습니다.
 
 ```
 var m3 = {
@@ -138,7 +137,7 @@ var m3 = {
 };
 ```
 
-And here are the updated 3D versions.
+그리고 여기에 업데이트된 3D 버전이 있습니다.
 
 ```
 var m4 = {
@@ -198,38 +197,34 @@ var m4 = {
 };
 ```
 
-Notice we now have 3 rotation functions.  We only needed one in 2D as we
-were effectively only rotating around the Z axis.  Now though to do 3D we
-also want to be able to rotate around the X axis and Y axis as well.  You
-can see from looking at them they are all very similar.  If we were to
-work them out you'd see them simplify just like before
+여기서 주목할것은 3개의 회전 함수가 있다는 것 입니다. 2D에서는 Z축을 기준으로 하는 한개의 회전만 있엇습니다. 이제 3D에서는 X축 또는 Y축 회전 또한 존재합니다. 모두 비슷한 모양을 가지고 있다는것을 볼 수 있습니다. 어떻게 작동하는지 알아 본다면 이전처럼 간단하게 보일 것입니다.
 
-Z rotation
+Z축 회전
 
 <div class="webgl_center">
 <div>newX = x *  c + y * s;</div>
 <div>newY = x * -s + y * c;</div>
 </div>
 
-Y rotation
+Y축 회전
 
 <div class="webgl_center">
 <div>newX = x *  c + z * s;</div>
 <div>newZ = x * -s + z * c;</div>
 </div>
 
-X rotation
+X축 회전
 
 <div class="webgl_center">
 <div>newY = y *  c + z * s;</div>
 <div>newZ = y * -s + z * c;</div>
 </div>
 
-which gives you these rotations.
+이는 다음과 같은 회전을 제공합니다.
 
 <iframe class="external_diagram" src="resources/axis-diagram.html" style="width: 540px; height: 240px;"></iframe>
 
-Similarly we'll make our simplified functions
+마찬가지로 단순화 된 함수를 만들 것입니다.
 
 ```
   translate: function(m, tx, ty, tz) {
@@ -253,11 +248,11 @@ Similarly we'll make our simplified functions
   },
 ```
 
-We also need to update the projection function. Here's the old one
+투영 함수도 업데이트를 해야합니다. 여기에 예젠 버전이 있습니다.
 
 ```
   projection: function (width, height) {
-    // Note: This matrix flips the Y axis so 0 is at the top.
+    // Note: 이 행렬은 Y축을 뒤집어서 0이 맨위가 되도록 합니다.
     return [
       2 / width, 0, 0,
       0, -2 / height, 0,
