@@ -248,7 +248,7 @@ X축 회전
   },
 ```
 
-투영 함수도 업데이트를 해야합니다. 여기에 예젠 버전이 있습니다.
+투영 함수도 업데이트를 해야합니다. 여기에 예전 버전이 있습니다.
 
 ```
   projection: function (width, height) {
@@ -262,12 +262,11 @@ X축 회전
 }
 ```
 
-which converted from pixels to clip space. For our first attempt at
-expanding it to 3D let's try
+이 함수는 픽셀에서 클립공간으로 변환합니다. 3D로 확장하기 위한 첫번쨰 시도를 해봅시다.
 
 ```
   projection: function(width, height, depth) {
-    // Note: This matrix flips the Y axis so 0 is at the top.
+    // Note: 이 행렬은 Y축을 뒤집어서 0이 맨위가 되도록 합니다.
     return [
        2 / width, 0, 0, 0,
        0, -2 / height, 0, 0,
@@ -277,16 +276,18 @@ expanding it to 3D let's try
   },
 ```
 
+픽셀에서 클립 공간으로 X와 Y를 변환해야하는 것처럼 Z에도 똑같은 작업을 수행해야합니다. 이 경우에는 Z축 픽셀 단위를 만들어야 합니다. `depth`에 `width`와 비슷 한 값을 전달할 것입니다. 그래서 공간은 0에서 `width` 픽셀이 너비가 되고, 0에서 `height` 픽셀은 높이가 되며 `depth`는 `-depth / 2 '에서 `+ depth / 2'로 됩니다.
+
 Just like we needed to convert from pixels to clip space for X and Y, for
 Z we need to do the same thing.  In this case I'm making the Z axis pixel
 units as well.  I'll pass in some value similar to `width` for the `depth`
 so our space will be 0 to `width` pixels wide, 0 to `height` pixels tall, but
 for `depth` it will be `-depth / 2` to `+depth / 2`.
 
-Finally we need to to update the code that computes the matrix.
+마지막으로 행렬을 계산하는 코드를 업데이트 해야 합니다.
 
 ```
-  // Compute the matrix
+  // 행렬 계산
 *  var matrix = m4.projection(gl.canvas.clientWidth, gl.canvas.clientHeight, 400);
 *  matrix = m4.translate(matrix, translation[0], translation[1], translation[2]);
 *  matrix = m4.xRotate(matrix, rotation[0]);
@@ -294,82 +295,75 @@ Finally we need to to update the code that computes the matrix.
 *  matrix = m4.zRotate(matrix, rotation[2]);
 *  matrix = m4.scale(matrix, scale[0], scale[1], scale[2]);
 
-  // Set the matrix.
+  // 행렬 설정
 *  gl.uniformMatrix4fv(matrixLocation, false, matrix);
 ```
 
-And here's that sample.
+여기에 예제가 있습니다.
 
 {{{example url="../webgl-3d-step1.html" }}}
 
-The first problem we have is that our geometry is a flat F which makes it
-hard to see any 3D.  To fix that let's expand the geometry to 3D.  Our
-current F is made of 3 rectangles, 2 triangles each.  To make it 3D will
-require a total of 16 rectangles.  the 3 rectangles on the front, 3 on the
-back, 1 on the left, 4 on the right, 2 on the tops, 3 on the bottoms.
+여기에 있는 첫번쨰 문제는 지오메트리가 평면 F라서 3D로 보이기 어렵다는 것입니다. 
+이를 고치기 위해 지오메트리를 3D로 확장해 보겠습니다. 현재 F는 각각 2개의 삼각형인 3개의 직사각형으로 구성되어 있습니다. 
+3D로 만들기 위해서는 16개의 직사각형이 필요합니다. 3개의 직사각형은 앞면, 3개는 뒷면, 왼쪽면에 1개, 오른쪽면에 4개 윗면에 2개, 아랫면에 3개가 필요합니다.
 
 <img class="webgl_center" width="300" src="resources/3df.svg" />
 
-That's quite a few to list out here.
-16 rectangles with 2 triangles per rectangle and 3 vertices per triangle is 96
-vertices.  If you want to see all of them view the source of the sample.
+여기에 적어 놓은 것은 꽤나 적지만 만약 모든 예제 소스를 보기를 원한다면 3개의 버텍스인 2개의 삼각형으로 이루워진 16개의 직사각형은 96개의 점을 가집니다. 
 
-We have to draw more vertices so
+더 많은 버텍스들을 그려야 합니다.
 
 ```
-    // Draw the geometry.
+    // 지오메트리 그리기
     var primitiveType = gl.TRIANGLES;
     var offset = 0;
 *    var count = 16 * 6;
     gl.drawArrays(primitiveType, offset, count);
 ```
 
-And here's that version
+여기에 새로운 버전이 있습니다.
 
 {{{example url="../webgl-3d-step2.html" }}}
 
-Moving the sliders it's pretty hard to tell that it's 3D.  Let's try
-coloring each rectangle a different color.  To do this we will add another
-attribute to our vertex shader and a varying to pass it from the vertex
-shader to the fragment shader.
+이제 슬라이더를 움직여 보면 3D라고 말할 수 있습니다. 각 사각형에 다른 색갈을 칠해 봅시다. 이를 하기 위해서 버텍스 쉐이더에 다른 attribute를 추가를 하고 varying을 버텍스 쉐이더에서 프래그먼트 쉐이더로 전달 해야합니다.
 
-Here's the new vertex shader
+여기에 새로운 버텍스 쉐이더가 있습니다.
 
 ```
 #version 300 es
 
-// an attribute is an input (in) to a vertex shader.
-// It will receive data from a buffer
+// attribute는 버텍스 쉐이더에 입력입니다.
+// 버퍼로 부터 데이터를 받습니다.
 in vec4 a_position;
 +in vec4 a_color;
 
-// A matrix to transform the positions by
+// 위치를 변환하는 행렬
 uniform mat4 u_matrix;
 
-+// a varying the color to the fragment shader
++// 프래그먼트 쉐이더로 전달할 색상 varying
 +out vec4 v_color;
 
-// all shaders have a main function
+// 모든 쉐이더는 main함수를 가지고 있습니다.
 void main() {
-  // Multiply the position by the matrix.
+  // 위치에 행렬을 곱합니다.
   gl_Position = u_matrix * a_position;
 
-+  // Pass the color to the fragment shader.
++  // 프래그먼트 쉐이더로 색상을 전달 합니다.
 +  v_color = a_color;
 }
 ```
 
-And we need to use that color in the fragment shader
+그런 다음 프래그먼트 쉐이더에서 색상을 사용해야 합니다.
 
 ```
 #version 300 es
 
 precision mediump float;
 
-+// the varied color passed from the vertex shader
++// 버텍스 쉐이더에서 전달된 다양한 색상들
 +in vec4 v_color;
 
-// we need to declare an output for the fragment shader
+// 프래그먼트 쉐이더에서 출력할 값을 선언해야 합니다.
 out vec4 outColor;
 
 void main() {
@@ -377,8 +371,7 @@ void main() {
 }
 ```
 
-We need to lookup the attribute location to supply the colors, then setup another
-buffer and attribute to give it the colors.
+색상을 제공 하기 위해서 attribute의 위치를 찾은 다음 다른 버퍼 설정하고 attribute에 색상을 제공하면 됩니다.
 
 ```
   ...
