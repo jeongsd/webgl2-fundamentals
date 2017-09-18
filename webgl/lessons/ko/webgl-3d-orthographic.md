@@ -379,34 +379,32 @@ void main() {
 
   ...
 
-  // create the color buffer, make it the current ARRAY_BUFFER
-  // and copy in the color values
+  // 색상 버퍼를 생성하고 ARRAY_BUFFER로 만든 다음 색상값을 복사합니다.
   var colorBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
   setColors(gl);
 
-  // Turn on the attribute
+  // attribute 켜기
   gl.enableVertexAttribArray(colorAttributeLocation);
 
-  // Tell the attribute how to get data out of colorBuffer (ARRAY_BUFFER)
-  var size = 3;          // 3 components per iteration
-  var type = gl.UNSIGNED_BYTE;   // the data is 8bit unsigned bytes
-  var normalize = true;  // convert from 0-255 to 0.0-1.0
-  var stride = 0;        // 0 = move forward size * sizeof(type) each
-                         // iteration to get the next color
-  var offset = 0;        // start at the beginning of the buffer
+  // attribute에 colorBuffer (ARRAY_BUFFER)부터 데이터를 가져오는 방법을 전달합니다.
+  var size = 3;          // 반복당 3개의 구성요소
+  var type = gl.UNSIGNED_BYTE;   // 데이터는 8 비트 부호없는 바이트입니다.
+  var normalize = true;  // 0-255에서 0.0-1.0로 변환
+  var stride = 0;        // 0 = 반복마다 size * sizeof(type)만큼 이동해서 다음 색상을 얻습니다.
+  var offset = 0;        // 버퍼의 시작부분에서 시작
   gl.vertexAttribPointer(
       colorAttributeLocation, size, type, normalize, stride, offset);
 
   ...
 
-// Fill the buffer with colors for the 'F'.
+// 버퍼에 'F' 색상을 채웁니다.
 
 function setColors(gl) {
   gl.bufferData(
       gl.ARRAY_BUFFER,
       new Uint8Array([
-          // left column front
+          // 왼쪽 앞 칸
         200,  70, 120,
         200,  70, 120,
         200,  70, 120,
@@ -423,22 +421,15 @@ function setColors(gl) {
 }
 ```
 
-Now we get this.
+그런 다음 다음을 얻을수 있습니다.
 
 {{{example url="../webgl-3d-step3.html" }}}
 
-Uh oh, what's that mess?  Well, it turns out all the various parts of
-that 3D 'F', front, back, sides, etc get drawn in the order they appear in
-our geometry data.  That doesn't give us quite the desired results as sometimes
-the ones in the back get drawn after the ones in the front.
+음 무엇이 이상할까요? 음, 3D 'F'의 앞면, 뒷면, 측면 등의 다양한 부분이 우리의 지오메트리 데이터에 나타나는 순서대로 그려집니다. 이는 뒷면이 앞면이 그려진 다음에 그려질수 있기 떄문에 우리가 원하는 결과를 얻지 못할수도 있습니다.
 
 <img class="webgl_center" width="163" height="190" src="resources/polygon-drawing-order.gif" />
 
-The <span style="background: rgb(200, 70, 120); color: white; padding: 0.25em">redish part</span> is
-the **front** of the 'F'  but because it's the first part of our data
-it is drawn first and then the other triangles behind it get drawn
-after covering it up. For example the  <span style="background: rgb(80, 70, 200); color: white; padding: 0.25em">purple part</span>
-is actually the back of the 'F'. It gets drawn 2nd because it comes 2nd in our data.
+ <span style="background: rgb(200, 70, 120); color: white; padding: 0.25em">붉게된 부분는</span> **앞면**이지만 데이터의 첫번째 부분이기 때문에 첫번쨰로 그려지기 때문에 다른 삼각형에 가려지게 됩니다. 예를 들어 <span style="background: rgb(80, 70, 200); color: white; padding: 0.25em">보라색 부분</span>은 실제로 'F'의 뒷면 입니다. 데이터 순서가 2번째 이기 떄문에 2번째에 그려집니다.
 
 Triangles in WebGL have the concept of front facing and back facing.  A
 front facing triangle has its vertices go in a clockwise direction.  A
