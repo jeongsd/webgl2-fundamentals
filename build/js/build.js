@@ -153,12 +153,32 @@ Handlebars.registerHelper('image', function(options) {
   return templateManager.apply("build/templates/image.template", options.hash);
 });
 
+Handlebars.registerHelper('selected', function(options) {
+  const key = options.hash.key;
+  const value = options.hash.value;
+  const re = options.hash.re;
+  const sub = options.hash.sub;
+
+  let a = this[key];
+  let b = options.data.root[value];
+
+  if (re) {
+    const r = new RegExp(re);
+    b = b.replace(r, sub);
+  }
+
+  return a === b ? 'selected' : '';
+});
+
+function slashify(s) {
+  return s.replace(/\\/g, '/');
+}
+
 var Builder = function(outBaseDir, options) {
 
   var g_articlesByLang = {};
   var g_articles = [];
   var g_langInfo;
-  var g_langs;
   var g_langDB = {};
   var g_outBaseDir = outBaseDir;
   var g_origPath = options.origPath;
@@ -247,16 +267,28 @@ var Builder = function(outBaseDir, options) {
     var html = marked(info.content);
     html = insertHandlebars(info, html);
     html = replaceParams(html, [opt_extra, g_langInfo]);
-    const relativeOutName = outFileName.replace(/\\/g, '/').substring(g_outBaseDir.length);
+    const relativeOutName = slashify(outFileName).substring(g_outBaseDir.length);
+    const langs = Object.keys(g_langDB).map((name) => {
+      const lang = g_langDB[name];
+      const url = slashify(path.join(lang.basePath, path.basename(outFileName)))
+         .replace("index.html", "")
+         .replace(/^\/webgl\/lessons\/$/, '/');
+      return {
+        lang: lang.lang,
+        language: lang.language,
+        url: url,
+      };
+    });
     metaData['content'] = html;
-    metaData['langs'] = g_langs;
-    metaData['src_file_name'] = contentFileName.replace(/\\/g, '/');
+    metaData['langs'] = langs;
+    metaData['src_file_name'] = slashify(contentFileName);
     metaData['dst_file_name'] = relativeOutName;
     metaData['basedir'] = "";
     metaData['toc'] = opt_extra.toc;
     metaData['templateOptions'] = opt_extra.templateOptions;
     metaData['langInfo'] = g_langInfo;
-    metaData['url'] = "http://webgl2fundamentals.org/" + relativeOutName;
+    metaData['url'] = "http://webgl2fundamentals.org" + relativeOutName;
+    metaData['relUrl'] = relativeOutName;
     metaData['screenshot'] = "http://webgl2fundamentals.org/webgl/lessons/resources/webgl2fundamentals.jpg";
     var basename = path.basename(contentFileName, ".md");
     [".jpg", ".png"].forEach(function(ext) {
@@ -312,16 +344,17 @@ var Builder = function(outBaseDir, options) {
     var lessons = lang.lessons || ("webgl/lessons/" + lang.lang);
     var langInfo = hanson.parse(fs.readFileSync(path.join(lessons, "langinfo.hanson"), {encoding: "utf8"}));
     langInfo.langCode = langInfo.langCode || lang.lang;
+    langInfo.home = lang.home || ('/' + lessons + '/');
     g_langDB[lang.lang] = {
       lang: lang.lang,
       language: langInfo.language,
+      basePath: '/' + lessons,
+      langInfo: langInfo,
     };
-    return templateManager.apply("build/templates/lang-select.template", [lang, langInfo]);
   };
 
   this.preProcess = function(langs) {
-     var langs = langs.map(getLanguageSelection).join("\n");
-     g_langs = templateManager.apply("build/templates/languages.template", {languages: langs});
+     langs.forEach(getLanguageSelection);
   };
 
   this.process = function(options) {
@@ -332,7 +365,7 @@ var Builder = function(outBaseDir, options) {
     options.examplePath = options.examplePath === undefined ? "/webgl/lessons/" : options.examplePath;
 
     g_articles = [];
-    g_langInfo = hanson.parse(fs.readFileSync(path.join(options.lessons, "langinfo.hanson"), {encoding: "utf8"}));
+    g_langInfo = g_langDB[options.lang].langInfo;
 
     applyTemplateToFiles(options.template, path.join(options.lessons, "webgl*.md"), options);
 
@@ -346,11 +379,16 @@ var Builder = function(outBaseDir, options) {
       const data = Object.assign({}, loadMD(path.join(g_origPath, name)));
       data.content = g_langInfo.missing;
       const extra = {
-        origLink: '/' + path.join(g_origPath, baseName + ".html").replace(/\\/g, '/'),
+        origLink: '/' + slashify(path.join(g_origPath, baseName + ".html")),
         toc: options.toc,
       };
       console.log("  generating missing:", outFileName);
-      applyTemplateToContent("build/templates/missing.template", path.join(options.lessons, "langinfo.hanson"), outFileName, extra, data);
+      applyTemplateToContent(
+          "build/templates/missing.template",
+          path.join(options.lessons, "langinfo.hanson"),
+          outFileName,
+          extra,
+          data);
     });
 
     function utcMomentFromGitLog(result) {
@@ -435,7 +473,9 @@ var Builder = function(outBaseDir, options) {
       });
 
       try {
-        writeFileIfChanged(path.join(g_outBaseDir, options.lessons, "atom.xml"), feed.render('atom-1.0'));
+        const outPath = path.join(g_outBaseDir, options.lessons, "atom.xml");
+        console.log("write:", outPath);
+        writeFileIfChanged(outPath, feed.render('atom-1.0'));
       } catch (err) {
         return Promise.reject(err);
       }
@@ -454,6 +494,7 @@ var Builder = function(outBaseDir, options) {
       if (err.stack) {
         console.error(err.stack);
       }
+      throw new Error(err.toString());
     });
   }
 
@@ -472,12 +513,12 @@ var Builder = function(outBaseDir, options) {
       articleLangs[filename] = langs;
       sm.add(article);
     });
-    var langInfo = {
-      articles: articleLangs,
-      langs: g_langDB,
-    };
-    var langJS = "window.langDB = " + JSON.stringify(langInfo, null, 2);
-    writeFileIfChanged(path.join(g_outBaseDir, "langdb.js"), langJS);
+    // var langInfo = {
+    //   articles: articleLangs,
+    //   langs: g_langDB,
+    // };
+    // var langJS = "window.langDB = " + JSON.stringify(langInfo, null, 2);
+    // writeFileIfChanged(path.join(g_outBaseDir, "langdb.js"), langJS);
     writeFileIfChanged(path.join(g_outBaseDir, "sitemap.xml"), sm.toString());
     copyFile(path.join(g_outBaseDir, "webgl/lessons/atom.xml"), path.join(g_outBaseDir, "atom.xml"));
     copyFile(path.join(g_outBaseDir, "webgl/lessons/index.html"), path.join(g_outBaseDir, "index.html"));
@@ -530,6 +571,7 @@ var langs = [
     lang: 'en',
     toc: 'webgl/lessons/toc.html',
     examplePath: '/webgl/lessons/',
+    home: '/',
   },
 ];
 
